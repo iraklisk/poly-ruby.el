@@ -43,11 +43,6 @@
 ;;
 ;;   (define-key ruby-mode-map (kbd "C-c m") 'toggle-poly-ruby-mode)
 ;;
-;; This package also has experimental support for enh-ruby-mode and
-;; defines poly-enh-ruby-mode and toggle-poly-enh-ruby-mode.
-;;
-;;   (define-key enh-ruby-mode-map (kbd "C-c m") 'toggle-poly-enh-ruby-mode)
-
 ;;; Code:
 
 (require 'polymode)
@@ -56,13 +51,6 @@
   (pm-host-chunkmode :name "ruby"
                      :mode 'ruby-mode)
   "Ruby host chunkmode."
-  :group 'poly-hostmodes
-  :type 'object)
-
-(defcustom pm-host/enh-ruby
-  (pm-host-chunkmode :name "enh-ruby"
-                     :mode 'enh-ruby-mode)
-  "Enhanced Ruby host chunkmode."
   :group 'poly-hostmodes
   :type 'object)
 
@@ -145,40 +133,13 @@
   :group 'polymodes
   :type 'object)
 
-(defcustom pm-poly/enh-ruby
-  (pm-polymode :name "enh-ruby"
-               :hostmode 'pm-host/enh-ruby
-               :innermodes '(pm-inner/ruby-heredoc))
-  "Enhanced Ruby polymode."
-  :group 'polymodes
-  :type 'object)
-
 ;;;###autoload (autoload 'poly-ruby-mode "poly-ruby" "Ruby polymode." t)
 (define-polymode poly-ruby-mode pm-poly/ruby)
-
-;;;###autoload (autoload 'poly-enh-ruby-mode "poly-ruby" "Enhanced Ruby polymode." t)
-(define-polymode poly-enh-ruby-mode pm-poly/enh-ruby)
-
-(defun poly-ruby-mode-fix-indent-function ()
-  ;; smie-indent-line does not work properly in polymode
-  (setq-local indent-line-function 'ruby-indent-line))
-
-(defcustom poly-ruby-mode-hook '(poly-ruby-mode-fix-indent-function)
-  "Hook run when entering poly-ruby-mode."
-  :type 'hook
-  :group 'polymodes)
-
-(defcustom poly-enh-ruby-mode-hook nil
-  "Hook run when entering poly-enh-ruby-mode."
-  :type 'hook
-  :group 'polymodes)
 
 (add-hook 'polymode-init-host-hook
           (lambda ()
             (cond ((eq major-mode 'ruby-mode)
-                   (run-hooks 'poly-ruby-mode-hook))
-                  ((eq major-mode 'enh-ruby-mode)
-                   (run-hooks 'poly-enh-ruby-mode-hook)))))
+                   (run-hooks 'poly-ruby-mode-hook)))))
 
 ;;;###autoload
 (defun toggle-poly-ruby-mode ()
@@ -187,14 +148,6 @@
   (if (bound-and-true-p polymode-mode)
       (ruby-mode)
     (poly-ruby-mode)))
-
-;;;###autoload
-(defun toggle-poly-enh-ruby-mode ()
-  "Toggle poly-enh-ruby-mode."
-  (interactive)
-  (if (bound-and-true-p polymode-mode)
-      (enh-ruby-mode)
-    (poly-enh-ruby-mode)))
 
 (provide 'poly-ruby)
 ;;; poly-ruby.el ends here
