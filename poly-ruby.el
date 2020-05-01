@@ -47,51 +47,26 @@
 
 (require 'polymode)
 
-(defcustom pm-host/ruby
-  (pm-host-chunkmode :name "ruby"
-                     :mode 'ruby-mode)
-  "Ruby host chunkmode."
-  :group 'poly-hostmodes
-  :type 'object)
+(eval-and-compile
+  (defconst poly-ruby/heredoc-head-regexp
+    "\\(<\\)<\\([~-]\\)?\\(\\([_[:word:]]+\\)\\|[\"]\\([^\"]+\\)[\"]\\|[']\\([^']+\\)[']\\)"
+    "Regexp to match the beginning of a ruby heredoc."))
 
-(defvar poly-ruby--heredoc-head-regexp
-  "<<\\([-~]?\\)\\(['\"]?\\)\\([_[:word:]]+\\)\\2.*\n?")
-
-(defvar poly-ruby--heredoc-eval-regexp
-  "\\_<\\(?:class_\\|module_\\|instance_\\)?eval[ \t]*[ \t(][ \t]*")
-
-(defun poly-ruby--get-faces-at-point ()
-  (let* ((point (point))
-         (value (or
-                 (get-text-property point 'read-face-name)
-                 (get-text-property point 'face))))
-    (if (listp value) value (list value))))
-
-(defun poly-ruby--faces-at-point-include-p (&rest faces)
-  (loop for face in faces
-        with pfaces = (poly-ruby--get-faces-at-point)
-        thereis (memq face pfaces)))
-
-(defun poly-ruby--comment-at-point-p ()
-  (poly-ruby--faces-at-point-include-p
-   'font-lock-comment-face))
-
-(defun poly-ruby--heredoc-head-matcher (ahead)
+(defun poly-ruby/heredoc-head-matcher (ahead)
   (save-excursion
-    (if (re-search-forward poly-ruby--heredoc-head-regexp nil t ahead)
+    (if (re-search-forward poly-ruby/heredoc-head-regexp nil t ahead)
         (let ((head (cons (match-beginning 0) (match-end 0))))
           (save-match-data
             (goto-char (car head))
             (and (not (looking-at "[[:digit:]]"))
-                 (not (poly-ruby--comment-at-point-p))
                  (not (looking-back "[_[:word:]]" nil))
                  head))))))
 
-(defun poly-ruby--heredoc-tail-matcher (ahead)
+(defun poly-ruby/heredoc-tail-matcher (ahead)
   (save-excursion
     (save-match-data
       (beginning-of-line 0)
-      (if (poly-ruby--heredoc-head-matcher 1)
+      (if (poly-ruby/heredoc-head-matcher 1)
           (let* ((noindent (string= "" (match-string 1)))
                  (word (match-string 3))
                  (tail-reg (concat (if noindent "^" "^[ \t]*")
@@ -102,44 +77,44 @@
                 (cons (match-beginning 0) (match-end 0))
               (cons (point-max) (point-max))))))))
 
-(defun poly-ruby--heredoc-mode-matcher ()
+(defun poly-ruby/heredoc-mode-matcher ()
   (save-match-data
-    (poly-ruby--heredoc-head-matcher 1)
+    (poly-ruby/heredoc-head-matcher 1)
     (let* ((word (intern (downcase (match-string 3))))
            (ruby (intern (replace-regexp-in-string
                           "-mode\\'" ""
                           (symbol-name (oref (oref pm/polymode -hostmode) mode)))))
-           (name (if (looking-back poly-ruby--heredoc-eval-regexp nil)
-                     ruby
-                   (if (eq word 'ruby) ruby word))))
+           (name (if (eq word 'ruby) ruby word)))
       name)))
 
-(defcustom pm-inner/ruby-heredoc
-  (pm-inner-auto-chunkmode :name "ruby-here-document"
-                           :head-mode 'host
-                           :tail-mode 'host
-                           :head-matcher 'poly-ruby--heredoc-head-matcher
-                           :tail-matcher 'poly-ruby--heredoc-tail-matcher
-                           :mode-matcher 'poly-ruby--heredoc-mode-matcher)
-  "Ruby here-document chunk."
-  :group 'innermodes
-  :type 'object)
+(define-auto-innermode poly-ruby-innermode
+  :fallback-mode 'host
+  :head-mode 'host
+  :tail-mode 'host
+  :head-matcher 'poly-ruby/heredoc-head-matcher
+  :tail-matcher 'poly-ruby/heredoc-tail-matcher
+  :mode-matcher 'poly-ruby/heredoc-mode-matcher
+  :body-indent-offset 'ruby-indent-level
+  :indent-offset 'ruby-indent-level)
 
-(defcustom pm-poly/ruby
-  (pm-polymode :name "ruby"
-               :hostmode 'pm-host/ruby
-               :innermodes '(pm-inner/ruby-heredoc))
-  "Ruby polymode."
-  :group 'polymodes
-  :type 'object)
+(defun poly-ruby-mode-fix-indent-function ()
+  ;; smie-indent-line does not work properly in polymode
+  (setq-local indent-line-function 'ruby-indent-line))
 
-;;;###autoload (autoload 'poly-ruby-mode "poly-ruby" "Ruby polymode." t)
-(define-polymode poly-ruby-mode pm-poly/ruby)
+(defcustom poly-ruby-mode-hook '(poly-ruby-mode-fix-indent-function)
+  "Hook run when entering poly-ruby-mode."
+  :type 'hook
+  :group 'polymodes)
 
 (add-hook 'polymode-init-host-hook
           (lambda ()
             (cond ((eq major-mode 'ruby-mode)
                    (run-hooks 'poly-ruby-mode-hook)))))
+
+;;;###autoload  (autoload 'poly-ruby-mode "poly-ruby")
+(define-polymode poly-ruby-mode
+  :hostmode 'poly-ruby-hostmode
+  :innermodes '(poly-ruby-innermode))
 
 ;;;###autoload
 (defun toggle-poly-ruby-mode ()
@@ -148,6 +123,9 @@
   (if (bound-and-true-p polymode-mode)
       (ruby-mode)
     (poly-ruby-mode)))
+
+ ;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.rb\\'" . poly-ruby-mode))
 
 (provide 'poly-ruby)
 ;;; poly-ruby.el ends here
