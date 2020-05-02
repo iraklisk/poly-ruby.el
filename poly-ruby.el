@@ -62,9 +62,14 @@
   :mode-matcher (cons "<<~{?\\(?:lang *= *\\)?\\([^ \t\n;=,}]+\\)" 1))
 ;;  :mode-matcher #'poly-ruby--mode-matcher)
 
+(define-hostmode poly-ruby-custom-hostmode
+  :mode 'ruby-mode
+  :protect-font-lock nil
+  :protect-syntax t)
+
 ;;;###autoload  (autoload 'poly-ruby-mode "poly-ruby")
 (define-polymode poly-ruby-mode
-  :hostmode 'poly-ruby-hostmode
+  :hostmode 'poly-ruby-custom-hostmode
   :innermodes '(poly-ruby-innermode))
 
 ;;;###autoload
