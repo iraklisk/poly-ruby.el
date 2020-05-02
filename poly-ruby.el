@@ -49,10 +49,6 @@
 
 (defconst poly-ruby--langs (regexp-opt '("js" "sql" "html")))
 
-;; (defun poly-ruby--mode-matcher ()
-;;   (when (re-search-forward "[\r\n]+[ \t]*<<~[:word:]" (point-at-eol) t)
-;;     (match-string-no-properties 2)))
-
 (define-auto-innermode poly-ruby-innermode
   :fallback-mode 'host
   :head-mode 'host
@@ -66,6 +62,20 @@
   :mode 'ruby-mode
   :protect-font-lock nil
   :protect-syntax t)
+
+(defun poly-ruby-mode-fix-indent-function ()
+  ;; smie-indent-line does not work properly in polymode
+  (setq-local indent-line-function 'ruby-indent-line))
+
+(defcustom poly-ruby-mode-hook '(poly-ruby-mode-fix-indent-function)
+  "Hook run when entering poly-ruby-mode."
+  :type 'hook
+  :group 'polymodes)
+
+(add-hook 'polymode-init-host-hook
+          (lambda ()
+            (cond ((eq major-mode 'ruby-mode)
+                   (run-hooks 'poly-ruby-mode-hook)))))
 
 ;;;###autoload  (autoload 'poly-ruby-mode "poly-ruby")
 (define-polymode poly-ruby-mode
