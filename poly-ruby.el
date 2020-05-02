@@ -47,69 +47,20 @@
 
 (require 'polymode)
 
-(eval-and-compile
-  (defconst poly-ruby/heredoc-head-regexp
-    "\\(<\\)<\\([~-]\\)?\\(\\([_[:word:]]+\\)\\|[\"]\\([^\"]+\\)[\"]\\|[']\\([^']+\\)[']\\)"
-    "Regexp to match the beginning of a ruby heredoc."))
+(defconst poly-ruby--langs (regexp-opt '("js" "sql" "html")))
 
-(defun poly-ruby/heredoc-head-matcher (ahead)
-  (save-excursion
-    (if (re-search-forward poly-ruby/heredoc-head-regexp nil t ahead)
-        (let ((head (cons (match-beginning 0) (match-end 0))))
-          (save-match-data
-            (goto-char (car head))
-            (and (not (looking-at "[[:digit:]]"))
-                 (not (looking-back "[_[:word:]]" nil))
-                 head))))))
-
-(defun poly-ruby/heredoc-tail-matcher (ahead)
-  (save-excursion
-    (save-match-data
-      (beginning-of-line 0)
-      (if (poly-ruby/heredoc-head-matcher 1)
-          (let* ((noindent (string= "" (match-string 1)))
-                 (word (match-string 3))
-                 (tail-reg (concat (if noindent "^" "^[ \t]*")
-                                   (regexp-quote word)
-                                   "\\(?:\n\\|\\'\\)")))
-            (goto-char (match-end 0))
-            (if (re-search-forward tail-reg nil t 1)
-                (cons (match-beginning 0) (match-end 0))
-              (cons (point-max) (point-max))))))))
-
-(defun poly-ruby/heredoc-mode-matcher ()
-  (save-match-data
-    (poly-ruby/heredoc-head-matcher 1)
-    (let* ((word (intern (downcase (match-string 3))))
-           (ruby (intern (replace-regexp-in-string
-                          "-mode\\'" ""
-                          (symbol-name (oref (oref pm/polymode -hostmode) mode)))))
-           (name (if (eq word 'ruby) ruby word)))
-      name)))
+;; (defun poly-ruby--mode-matcher ()
+;;   (when (re-search-forward "[\r\n]+[ \t]*<<~[:word:]" (point-at-eol) t)
+;;     (match-string-no-properties 2)))
 
 (define-auto-innermode poly-ruby-innermode
   :fallback-mode 'host
   :head-mode 'host
   :tail-mode 'host
-  :head-matcher 'poly-ruby/heredoc-head-matcher
-  :tail-matcher 'poly-ruby/heredoc-tail-matcher
-  :mode-matcher 'poly-ruby/heredoc-mode-matcher
-  :body-indent-offset 'ruby-indent-level
-  :indent-offset 'ruby-indent-level)
-
-(defun poly-ruby-mode-fix-indent-function ()
-  ;; smie-indent-line does not work properly in polymode
-  (setq-local indent-line-function 'ruby-indent-line))
-
-(defcustom poly-ruby-mode-hook '(poly-ruby-mode-fix-indent-function)
-  "Hook run when entering poly-ruby-mode."
-  :type 'hook
-  :group 'polymodes)
-
-(add-hook 'polymode-init-host-hook
-          (lambda ()
-            (cond ((eq major-mode 'ruby-mode)
-                   (run-hooks 'poly-ruby-mode-hook)))))
+  :head-matcher (cons (format "^[ \t]*\\(<<~%s\n\\)" poly-ruby--langs) 1)
+  :tail-matcher (cons (format "\\(^[ \t]*%s\n\\)" poly-ruby--langs) 1)
+  :mode-matcher (cons "<<~{?\\(?:lang *= *\\)?\\([^ \t\n;=,}]+\\)" 1))
+;;  :mode-matcher #'poly-ruby--mode-matcher)
 
 ;;;###autoload  (autoload 'poly-ruby-mode "poly-ruby")
 (define-polymode poly-ruby-mode
